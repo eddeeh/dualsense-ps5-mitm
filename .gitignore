@@ -1,0 +1,16 @@
+# Captures and kernel tree: 6.9 GB and 2.8 GB, not source.
+/logs/
+/linux/
+*.dump
+
+# Build output: build/ is the editor's, the other two are scripts/run.sh's
+/build/
+/build-release/
+/build-debug/
+/main
+
+.DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc
