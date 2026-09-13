@@ -555,6 +555,19 @@ void BluetoothHandler::handle_encrypt_change(PacketContents &packet_contents) {
         l2cap_send_conn_request(sdp_client_channel.psm, sdp_client_channel.scid);
     }
 
+    // A pad that called us is central of its link - we accept as peripheral -
+    // and against a real console it never is: the PS5 takes the central role
+    // right after encryption, the same sequence it runs on our console-facing
+    // radio. The link role is the one thing that separates the only two
+    // hole-free sessions on record from all the others. Every captured session
+    // in which the pad called us has the 135 ms holes on the console link, 0.2
+    // to 0.8 a second. The two in which we paged the pad, and so were central
+    // from the start, have none.
+    if (conn_side_ == EConnectionSide::to_dualsense && data->encrypt && incoming_link_) {
+        log("taking the central role on the pad's link, as the console would");
+        request_central_role(link_peer_addr_);
+    }
+
     if (conn_side_ != EConnectionSide::to_playstation || !data->encrypt)
         return;
 

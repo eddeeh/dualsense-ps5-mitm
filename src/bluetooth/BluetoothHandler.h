@@ -229,6 +229,7 @@ public:
 private:
 
     void send_connection_request(const bdaddr_t &addr);
+    void request_central_role(const bdaddr_t &addr);
     void request_authentication(uint16_t handle);
     void request_encryption(uint16_t handle);
 

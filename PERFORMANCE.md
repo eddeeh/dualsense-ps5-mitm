@@ -2,8 +2,10 @@
 
 Two separate questions, and they have very different answers. The CPU is not a
 problem and has not been one since the profiling round below. The holes in the
-input stream are real, they are felt, and this document is mostly about finding
-out what causes them.
+input stream were real and felt, and most of this document is the search for
+their cause. They are gone now. The fix was the Bluetooth role on the pad's link,
+not the haptic audio that most of the search pointed at. See
+[The holes were the pad link's role](#the-holes-were-the-pad-links-role).
 
 Everything here is measured on a live session - a controller connected, the
 console playing through it - not on synthetic load. The session behind the stall
@@ -513,6 +515,98 @@ change the console side needs. That would leave a straight trade: 4 ms on every
 input report against a rare hole of about a second. Worth watching the next few
 sessions for before deciding.
 
+# The holes were the pad link's role
+
+The analysis in [The holes](#the-holes) below is kept as it was written. Its
+measurements stand, but its conclusion does not: haptic audio was not the cause.
+This section is what replaced it.
+
+## Turning the audio down changed nothing
+
+The one-minute test recommended at the end of that section was run with the relay
+live and a capture attached. Speaker volume went to 0 and trigger effects went
+off. Both changes are visible in the console's own output reports, so the
+settings took effect.
+
+| | stalls | `0x39` share of console traffic |
+| --- | --- | --- |
+| normal settings | 0.295/s | 3.1% |
+| speaker 0, trigger effects off, 10.7 min | **0.357/s** | 3.1% |
+
+The console kept sending `0x39` at the same rate, with its volume byte at zero,
+and the holes stayed. The shared sequence counter across `0x36` and `0x39` steps
+by exactly one through every stall, so the console loses nothing. It also sends
+no catch-up burst afterwards: its output runs at 64-76% of its baseline rate right
+after a stall.
+
+## The audio is not needed for holes
+
+Scanning every console-side capture on disk found sessions with holes and no
+audio to blame:
+
+| session | length | `0x39` | stalls |
+| --- | --- | --- | --- |
+| 20260911-143048 | 25 min | 0.0% | 0.325/s, median 131 ms, 98% inside 100-150 ms |
+| 20260911-145558 | 3.9 h | 0.2% | 0.332/s |
+
+The same quantised hole, at the usual rate, with the audio stream absent. The
+correlation in the next section is real within those sessions, but it is not the
+mechanism.
+
+## What the clean sessions had in common
+
+Two captured sessions have no holes at all. They are also the only two in which
+the relay paged the pad, rather than the pad calling the relay when PS was
+pressed:
+
+| session | who connected | stalls | `0x39` |
+| --- | --- | --- | --- |
+| 20260911-140842 | **relay paged the pad** | **0 in 17 min** | 0.0% |
+| 20260911-143048 | pad called the relay | 0.325/s | 0.0% |
+| 20260912-153948 | **relay paged the pad** | **2 in 38 min** | 0.4% |
+| every other captured session | pad called the relay | 0.2-0.8/s | 0-3% |
+
+The first two rows are 20 minutes apart, on the same adapters, and neither has
+any audio.
+
+The difference is the role on the pad's link. The side that pages becomes
+central. On an incoming call the relay accepted with "remain peripheral", so the
+pad was central of its own link. A real console never leaves it like that. The
+PS5 takes the central role right after encryption, and the relay's
+console-facing radio shows it doing so on every run (`link encrypted (on)`, then
+`now peripheral`).
+
+## The fix, measured
+
+On an incoming pad link, `handle_encrypt_change()` now sends HCI Switch Role
+asking for central, which is what the console does. The pad accepted at once
+(`hci0 now central`). The session below had normal console settings and the pad
+calling the relay, the arrangement that had produced holes in every capture
+before.
+
+| | before (pad central) | after (relay central) |
+| --- | --- | --- |
+| stalls over 100 ms | 0.2-0.8/s | **0 in 481 s** |
+| gap between sends, p99.9 | 116-131 ms | **24.9 ms** |
+| reports sent to the console | ~300/s | 328/s |
+| pad reports in | 614/s | 645/s |
+| relay latency, p50 / p99 | 0.12 / 3.7 ms | 0.05 / 3.4 ms |
+| effects held back from the pad | 0.15% | 0.05% |
+
+At the old rate, 481 seconds would have held about 145 stalls. The p99.9 gap also
+matches the earlier session where the relay paged the pad (27.5 ms in
+20260912-153948). The player reported no hitches. The pad side got slightly better, not worse. `0x39` still
+ran (205 packets), but one arrived every couple of seconds instead of in 0.3 s
+episodes. So the episodes may have been the console's audio catching up after
+holes, not something that caused them.
+
+**What is not known is why.** The two links run on separate chips, and nothing in
+software couples them through the role. The likeliest physical story: as central,
+the pad polls the relay's pad-side dongle continuously. That dongle has to answer
+every poll, and its transmissions a few centimetres away desensitise the
+console-side receiver. Then the console's packets go unanswered, and it retries
+until they land. Nothing here tests that. The fix does not depend on it.
+
 # The holes
 
 The relay's own counters print every 5 seconds, which cannot see a 135 ms hole.
@@ -671,8 +765,10 @@ this machine.
 
 ## What to try, in order
 
-**1. Turn the controller's haptics and speaker down on the console.** One
-setting, one minute, and the prediction is unambiguous: if haptic audio is the
+**1. Turn the controller's haptics and speaker down on the console.** *Tested
+on 13 Sep: it does not work, and haptic audio was not the cause. See
+[The holes were the pad link's role](#the-holes-were-the-pad-links-role).*
+One setting, one minute, and the prediction is unambiguous: if haptic audio is the
 trigger, the stall rate should fall from 0.442/s toward the 0.10/s measured
 while audio is idle, and the bursts should disappear entirely. Every lever the
 earlier round tried was on the Pi; this one is not, which is why it was never

@@ -411,6 +411,12 @@ void BluetoothHandler::send_connection_request(const bdaddr_t &addr) {
              "create connection");
 }
 
+void BluetoothHandler::request_central_role(const bdaddr_t &addr) {
+    switch_role_cp request = {.bdaddr = addr, .role = 0x00 /* central */};
+    send_cmd(OGF_LINK_POLICY, OCF_SWITCH_ROLE, SWITCH_ROLE_CP_SIZE, &request,
+             "switch role");
+}
+
 void BluetoothHandler::request_authentication(uint16_t handle) {
     auth_requested_cp request = {.handle = handle};
     send_cmd(OGF_LINK_CTL, OCF_AUTH_REQUESTED, AUTH_REQUESTED_CP_SIZE, &request,
