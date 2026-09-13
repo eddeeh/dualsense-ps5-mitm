@@ -1,10 +1,11 @@
-# ps5padlog
+# dualsense-ps5-mitm
 
 ![](image.jpeg)
 
-A Raspberry Pi 5 that sits between a DualSense and a PS5, relays everything in
-both directions - input, rumble, lightbar, trigger effects - and shows every
-button, stick and touch as it goes past, with each press written to a log.
+A Raspberry Pi 5 that sits in the middle of a DualSense and a PS5 — a
+man-in-the-middle on the controller link. It registers the controller to the
+console over USB, bridges it to the console over Bluetooth, and passes
+everything both ways — input, rumble, lightbar, trigger effects — byte for byte.
 
     DualSense --BT--> [USB BT dongle]  Raspberry Pi 5  [onboard radio] --BT--> PS5
                                           |
@@ -13,6 +14,13 @@ button, stick and touch as it goes past, with each press written to a log.
 To the console it is a controller; to the pad, the Pi is its host. Apart from
 one PS press during registration (see below), nothing that passes through is
 changed.
+
+That bridge is the foundation. The one thing built on it so far is **input
+logging**: every button, stick and touch is shown live and written to a log as
+it passes, by a small companion tool, `padlog`. The relay itself is the
+man-in-the-middle; `padlog` is the first — and, for now, only — feature standing
+on top of it. Anything that needs to see or record the controller's state
+without a console-side mod could be built the same way.
 
 Getting there took a lot of packet captures. Most of what follows is what those
 captures showed, because nearly every part of the design exists to get past
@@ -279,7 +287,7 @@ captures sit next to it (`capture-<stamp>.dump` for the pad,
 stop it that way rather than by closing the terminal.
 
 The viewer is a separate program that needs no privileges. It reads the relay's
-`/dev/shm/ds_input`, so you can run `build-release/ps5padlog-view` by hand next to a
+`/dev/shm/ds_input`, so you can run `build-release/padlog` by hand next to a
 running relay, with `--log FILE` for the press log. When stdout isn't a terminal,
 it prints the press log instead of the panel.
 
@@ -400,7 +408,7 @@ a whole capture through the same parsing code.
 | `src/bluetooth/AclFlowControl.h`, `HeldFrame.h`, `PacketContents.h` | ACL buffer accounting, the one held input report, a bounds-checked packet cursor |
 | `src/dualsense/` | report layouts (`DualSense.h`) and conversions between them (`Transforms.h`) |
 | `src/usb/` | the USB gadget: configfs, FunctionFS, ep0 and the interrupt endpoints |
-| `src/input/` | the shared-memory input feed (`InputFeed.h`) and the viewer (`InputView.cpp`; `--diag` for the link and radio numbers) |
+| `src/input/` | the shared-memory input feed (`InputFeed.h`) and `padlog`, the viewer/logger (`InputView.cpp`; `--diag` adds the link and radio numbers) |
 | `src/bluetooth/SendGaps.h` | how long the console went without a report, per second, for the panel |
 | `scripts/run.sh` | prepares the Pi and runs everything |
 | `tests/`, `tools/extract_test_fixtures.py` | tests and the fixture extractor |

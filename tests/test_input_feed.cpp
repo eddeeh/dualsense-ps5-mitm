@@ -1,4 +1,4 @@
-// The input feed ps5padlog-view reads.
+// The input feed padlog reads.
 //
 // Two halves: decoding a report body into buttons, sticks and touch, checked
 // against reports the pad actually sent; and the shared page itself - what the

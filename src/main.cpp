@@ -1,5 +1,5 @@
 //
-// main.cpp — ps5padlog entry point
+// main.cpp — dualsense-ps5-mitm entry point
 //
 // Architecture: DualSense --BT--> RPi5 --BT--> PS5
 //
@@ -34,7 +34,7 @@
 // ============================================================================
 // Configuration — these are defaults, and the arguments override them:
 //
-//   ps5padlog [hci_index] [dualsense_mac] [ps5_hci_index]
+//   dualsense-ps5-mitm [hci_index] [dualsense_mac] [ps5_hci_index]
 //
 // The dongles' adapter indices move around between boots, so scripts/run.sh
 // detects them and passes them in rather than making you edit this file.
@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     if (argc > 2) ds_mac = argv[2];
     if (argc > 3) ps5_hci_index = atoi(argv[3]);
 
-    std::cout << "=== ps5padlog ===" << std::endl;
+    std::cout << "=== dualsense-ps5-mitm ===" << std::endl;
     std::cout << "Architecture: DualSense --BT--> RPi5 --BT--> PS5 (USB for registration)"
               << std::endl;
     std::cout << std::endl;

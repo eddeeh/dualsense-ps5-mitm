@@ -1,5 +1,5 @@
 //
-// BluetoothHandler.cpp - ps5padlog
+// BluetoothHandler.cpp - dualsense-ps5-mitm
 //
 // Talks to a real DualSense over Bluetooth and relays it to the PS5 through the
 // USB gadget: input reports outbound, GET_REPORT / SET_REPORT (including the
@@ -79,12 +79,12 @@ BluetoothHandler::BluetoothHandler(boost::asio::io_context &ios, uint32_t hci_de
         if (!gadget.init_gadget())
             std::cerr << "USB gadget setup failed - the PS5 will not see a controller" << std::endl;
 
-        // The pad's input for build/ps5padlog-view. Nothing here depends on it, so
+        // The pad's input for build/padlog. Nothing here depends on it, so
         // a failure is a line in the log and the relay carries on.
         if (input_feed_.open())
-            log("input feed at {} - watch it with build/ps5padlog-view", inputfeed::PATH);
+            log("input feed at {} - watch it with build/padlog", inputfeed::PATH);
         else
-            logerr("input feed {} could not be created ({}) - ps5padlog-view will have nothing to show",
+            logerr("input feed {} could not be created ({}) - padlog will have nothing to show",
                    inputfeed::PATH, strerror(errno));
     }
 }

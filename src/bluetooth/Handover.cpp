@@ -1,5 +1,5 @@
 //
-// Handover.cpp - ps5padlog
+// Handover.cpp - dualsense-ps5-mitm
 //
 // Moving the controller from the USB cable to the console's radio: the pairing
 // data the console writes in report 0x0a, the pair command 0x08 that detaches

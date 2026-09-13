@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(ps5padlog)
+project(dualsense-ps5-mitm)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,7 +63,7 @@ find_package(ZLIB REQUIRED)
 
 add_compile_definitions(BOOST_ASIO_HAS_CO_AWAIT)
 
-add_executable(ps5padlog src/main.cpp
+add_executable(dualsense-ps5-mitm src/main.cpp
         src/common/BdAddr.h
         src/common/Switches.h
         src/dualsense/DualSense.h
@@ -89,12 +89,12 @@ add_executable(ps5padlog src/main.cpp
         src/usb/LinuxAio.h
         src/usb/IPadBackend.h
         src/input/InputFeed.h)
-target_include_directories(ps5padlog PRIVATE src)
+target_include_directories(dualsense-ps5-mitm PRIVATE src)
 
 # Watches and logs the pad's input from the relay's /dev/shm feed. Built with the
 # relay so scripts/run.sh has it; needs nothing but the header.
-add_executable(ps5padlog-view src/input/InputView.cpp src/input/InputFeed.h)
-target_include_directories(ps5padlog-view PRIVATE src)
+add_executable(padlog src/input/InputView.cpp src/input/InputFeed.h)
+target_include_directories(padlog PRIVATE src)
 
 # ============================================================================
 # Tests

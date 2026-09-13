@@ -1,5 +1,5 @@
 //
-// HciEvents.cpp - ps5padlog
+// HciEvents.cpp - dualsense-ps5-mitm
 //
 // Events from the controller: connections made, refused and lost, pairing and
 // authentication, command status and completion, and the buffer counts the ACL

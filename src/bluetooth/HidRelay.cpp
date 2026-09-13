@@ -1,5 +1,5 @@
 //
-// HidRelay.cpp - ps5padlog
+// HidRelay.cpp - dualsense-ps5-mitm
 //
 // The relay itself: the pad's input to the console over Bluetooth and to the
 // USB gadget, the console's output and feature requests back to the pad, and
@@ -314,7 +314,7 @@ void BluetoothHandler::relay_pad_input(std::span<uint8_t> report) {
     if (report.size() >= 1 + dualsense::INPUT_BT_SIZE
         && report[0] == dualsense::HIDP_DATA_INPUT && report[1] == dualsense::REPORT_BT) {
         log_pad_battery(report);
-        // For ps5padlog-view. State reports only - the opaque stream's frames share
+        // For padlog. State reports only - the opaque stream's frames share
         // the report id and their button bytes would read as random presses.
         if (transforms::carries_controller_state(report))
             input_feed_.publish(

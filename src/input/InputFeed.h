@@ -1,7 +1,7 @@
 #pragma once
 
 // The pad's input, published for watching and logging from outside the relay -
-// ps5padlog-view. Read-only for everyone but the relay.
+// padlog. Read-only for everyone but the relay.
 //
 // Shared memory because it is written on the path that carries
 // five hundred reports a second, and a copy into a mapped page costs nothing

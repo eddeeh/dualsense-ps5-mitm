@@ -85,7 +85,7 @@ echo "== building ($BUILD_TYPE, $BUILD_DIR) =="
 if [ ! -f "$BUILD_DIR/CMakeCache.txt" ]; then
     as_user cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -Wno-dev >/dev/null || exit 1
 fi
-as_user cmake --build "$BUILD_DIR" --target ps5padlog ps5padlog-view -j "$(nproc)" || exit 1
+as_user cmake --build "$BUILD_DIR" --target dualsense-ps5-mitm padlog -j "$(nproc)" || exit 1
 
 # ---------------------------------------------------------------------------
 # 2. Free the Bluetooth adapters, and load the stock gadget functions: the
@@ -247,9 +247,9 @@ echo "== running, relay log in $APP_LOG =="
 # cleanup's kill -INT reaches it.
 : > "$APP_LOG"
 ( trap '' PIPE
-  exec "$BUILD_DIR/ps5padlog" "$HCI_INDEX" "$PAD_MAC" ${PS5_INDEX:+"$PS5_INDEX"} \
+  exec "$BUILD_DIR/dualsense-ps5-mitm" "$HCI_INDEX" "$PAD_MAC" ${PS5_INDEX:+"$PS5_INDEX"} \
 ) > >(exec cat >> "$APP_LOG") 2>&1 &
 RELAY_PID=$!
 VIEW_ARGS=(--log "$INPUT_LOG" --relay-log "$APP_LOG" --relay-pid "$RELAY_PID")
 [ "$DIAG" = "1" ] && VIEW_ARGS+=(--diag)
-"$BUILD_DIR/ps5padlog-view" "${VIEW_ARGS[@]}"
+"$BUILD_DIR/padlog" "${VIEW_ARGS[@]}"

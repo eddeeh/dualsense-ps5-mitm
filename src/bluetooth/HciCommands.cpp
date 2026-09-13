@@ -1,5 +1,5 @@
 //
-// HciCommands.cpp - ps5padlog
+// HciCommands.cpp - dualsense-ps5-mitm
 //
 // The HCI commands BluetoothHandler sends, and the adapter settings built out
 // of them: pairing, scan modes, the console-facing identity, paging the peer.

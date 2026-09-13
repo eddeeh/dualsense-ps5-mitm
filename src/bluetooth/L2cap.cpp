@@ -1,5 +1,5 @@
 //
-// L2cap.cpp - ps5padlog
+// L2cap.cpp - dualsense-ps5-mitm
 //
 // ACL in and out: reassembly of L2CAP PDUs that arrive in pieces, routing by
 // channel, the signalling that opens and configures channels, and the one place

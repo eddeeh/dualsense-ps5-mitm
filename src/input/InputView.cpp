@@ -1,11 +1,11 @@
 //
-// ps5padlog-view - watch and log the pad's input while the relay runs.
+// padlog - watch and log the pad's input while the relay runs.
 //
-//   build/ps5padlog-view                         live panel, redrawn in place
-//   build/ps5padlog-view --log inputs.log        ... and every press and release to a file
-//   build/ps5padlog-view > inputs.log            not a terminal: presses and releases only
-//   build/ps5padlog-view --diag                  add the link numbers and the radio
-//   build/ps5padlog-view --relay-log logs/run-X.log
+//   build/padlog                         live panel, redrawn in place
+//   build/padlog --log inputs.log        ... and every press and release to a file
+//   build/padlog > inputs.log            not a terminal: presses and releases only
+//   build/padlog --diag                  add the link numbers and the radio
+//   build/padlog --relay-log logs/run-X.log
 //                                            also show the relay's latest log line
 //
 // Reads /dev/shm/ds_input, which the relay publishes (InputFeed.h). Needs no
@@ -487,7 +487,7 @@ std::vector<std::string> render(const Panel &p, const RelayTail &tail, const std
 
 void usage()
 {
-    std::println("usage: ps5padlog-view [--diag] [--log FILE] [--relay-log FILE] [--relay-pid PID] [--fps N] [--no-colour] [--feed PATH]");
+    std::println("usage: padlog [--diag] [--log FILE] [--relay-log FILE] [--relay-pid PID] [--fps N] [--no-colour] [--feed PATH]");
     std::println("  Shows the pad's input as the relay sees it, from {}.", PATH);
     std::println("  --log FILE        append every press and release to FILE");
     std::println("  --relay-log FILE  show the latest line of the relay's own log");
@@ -544,7 +544,7 @@ int main(int argc, char **argv)
             std::println(stderr, "cannot open {}: {}", log_path, std::strerror(errno));
             return 1;
         }
-        log.line(std::format("# ps5padlog-view started {}", wall_time(clock_ns(CLOCK_REALTIME))));
+        log.line(std::format("# padlog started {}", wall_time(clock_ns(CLOCK_REALTIME))));
     }
 
     struct sigaction sa{};
@@ -699,7 +699,7 @@ int main(int argc, char **argv)
         }
     }
     if (log.file) {
-        log.line(std::format("# ps5padlog-view stopped {}", wall_time(clock_ns(CLOCK_REALTIME))));
+        log.line(std::format("# padlog stopped {}", wall_time(clock_ns(CLOCK_REALTIME))));
         std::fclose(log.file);
     }
     return 0;

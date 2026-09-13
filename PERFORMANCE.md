@@ -437,7 +437,7 @@ Not established, but there is an obvious candidate and it is worth writing down
 before someone blames the radio again.
 
 `scripts/run.sh` sends the relay's stdout straight to a file:
-`ps5padlog ... > "$APP_LOG" 2>&1`, in the same directory where two `hcidump`
+`dualsense-ps5-mitm ... > "$APP_LOG" 2>&1`, in the same directory where two `hcidump`
 processes are writing captures at about 10 MB a minute between them. Every
 `std::cout` in the relay is therefore a blocking `write()` to the SD card, on the
 io_context thread - the same thread that owns both HCI sockets. The filesystem

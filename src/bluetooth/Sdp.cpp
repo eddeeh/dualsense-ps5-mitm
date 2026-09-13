@@ -1,5 +1,5 @@
 //
-// Sdp.cpp - ps5padlog
+// Sdp.cpp - dualsense-ps5-mitm
 //
 // Service discovery. The console asks the controller for its service record and
 // only the pad can answer it, so the question is forwarded and the answer kept.

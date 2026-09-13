@@ -451,7 +451,7 @@ private:
         stats_.console_input_count++;
         gaps_.on_sent(SendGaps::Clock::now());
     }
-    // The pad's input, published for build/ps5padlog-view. Only the pad-facing
+    // The pad's input, published for build/padlog. Only the pad-facing
     // side opens it; on the other it stays closed and publish() does nothing.
     inputfeed::Writer input_feed_;
     // ACL flow control: packets the controller still holds vs its pool.

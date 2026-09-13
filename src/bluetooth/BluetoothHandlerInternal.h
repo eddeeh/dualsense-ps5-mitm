@@ -1,7 +1,7 @@
 #pragma once
 
 //
-// BluetoothHandlerInternal.h - ps5padlog
+// BluetoothHandlerInternal.h - dualsense-ps5-mitm
 //
 // The constants more than one of BluetoothHandler's source files uses. Private
 // to src/bluetooth: a constant only one file needs is kept in that file.
