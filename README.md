@@ -7,7 +7,7 @@ man-in-the-middle on the controller link. It registers the controller to the
 console over USB, bridges it to the console over Bluetooth, and passes
 everything both ways — input, rumble, lightbar, trigger effects — byte for byte.
 
-    DualSense --BT--> [USB BT dongle]  Raspberry Pi 5  [onboard radio] --BT--> PS5
+    DualSense --BT--> [onboard radio]  Raspberry Pi 5  [USB BT dongle] --BT--> PS5
                                           |
                                         USB-C --> PS5   (registration only)
 
@@ -40,7 +40,8 @@ its Bluetooth address - on the other.
 
 This is what happens on every run:
 
-1. **The pad connects to the pad-facing dongle.** Press PS to wake it; the
+1. **The pad connects to the pad-facing radio** (the Pi's onboard one). Press
+   PS to wake it; the
    two use the link key saved when they were first paired.
 2. **The Pi shows up on USB-C as a DualSense.** The console reads the feature
    reports a controller has - calibration, firmware info, the host table - and
@@ -91,9 +92,10 @@ checksum and the console asks for exactly the size it wants.
 **Address spoofing needs the right chip.** The console-facing radio has to take
 over the pad's Bluetooth address. Broadcom and Cypress parts do this with
 vendor command `0xfc01`; Realtek parts can't, and the kernel has no
-`set_bdaddr` for them. The Pi 5's onboard BCM4345C0 can, and it runs the console
-side here. On the play link it managed a median of 7.8 ms between reports at
-about 189 per second, a little better than an ASUS BT400 in the same role.
+`set_bdaddr` for them. The Pi 5's onboard BCM4345C0 can, and so can an ASUS BT400
+(BCM20702A0). Here the BT400 faces the console and the onboard radio runs the pad
+side, because input from the pad reaches the onboard radio a few milliseconds
+fresher than through a USB dongle - it has no 8 ms batching. See PERFORMANCE.md.
 
 **Nobody does flow control unless you do.** The relay drives both adapters
 through `HCI_CHANNEL_USER`, where the kernel meters nothing. These controllers
@@ -159,15 +161,19 @@ No kernel patch or custom module is involved.
 
 - **A Raspberry Pi 5.** Its USB-C port is the only one that can act as a
   device, so that is where the cable to the PS5 goes.
-- **A USB Bluetooth dongle for the pad.** Anything works here, since that side
-  keeps its own address. I used an ASUS BT500 (Realtek RTL8761B).
-- **A radio that accepts an address change for the console side.** The Pi 5's
-  onboard radio does, and it's the one to use.
+- **A spoofable radio for the console side.** It has to take over the pad's
+  Bluetooth address, which needs a Broadcom or Cypress part - Realtek can't. An
+  ASUS BT400 (Broadcom BCM20702A0) works, and so does the Pi 5's onboard radio.
+- **A radio for the pad side.** Anything works, since that side keeps its own
+  address. The Pi's onboard radio is the better choice: it delivers the pad's
+  input without a USB dongle's 8 ms batching, a few milliseconds fresher.
 
-An ASUS BT400 (Broadcom BCM20702A0) also works on the console side, but it needs
-`brcm/BCM20702A1-0b05-17cb.hcd` in `/lib/firmware`, which linux-firmware does not
-ship. Without it the dongle runs on its factory ROM and dmesg says
-`Patch file not found`.
+So the setup used here is **pad on the onboard radio, console on the BT400**.
+The onboard part can't do both, so whichever side is not on it takes the dongle -
+and if the pad is on the onboard radio, the console dongle has to be the
+spoofable one. The BT400 needs `brcm/BCM20702A1-0b05-17cb.hcd` in `/lib/firmware`,
+which linux-firmware does not ship; without it it runs on its factory ROM and
+dmesg says `Patch file not found`.
 
 ### Software
 
@@ -215,13 +221,13 @@ sending console traffic out of the wrong radio fails in ways that look like
 protocol bugs. So the adapters are pinned by address in
 `/etc/dualsense_mitm.adapters`:
 
-    PAD=08:BF:B8:4C:E1:64
-    PS5=D8:3A:DD:9E:8B:F9
+    PAD=D8:3A:DD:9E:8B:F9      # the onboard radio
+    PS5=5C:F3:70:AA:61:3F      # the BT400
 
-`hciconfig` lists the addresses. `PS5=` is the radio that will take on the
-pad's address, so it has to be the one that can. If the file is missing,
-`run.sh` writes one from the first two USB adapters it finds, which is wrong
-when the console side is the onboard radio. Write it by hand.
+`hciconfig` lists the addresses. `PS5=` is the radio that will take on the pad's
+address, so it has to be the spoofable one. If the file is missing, `run.sh`
+writes one from the first two USB adapters it finds, which is wrong whenever the
+onboard radio is one of the two - as it is here. Write it by hand.
 
 **3. Put your controller's address into `scripts/run.sh`.** It's the `PAD_MAC`
 line. It's only used for the first pairing; after that, the address comes from
@@ -308,38 +314,15 @@ shows it:
     USB 5s: in ok=1 eagain=3047 ctrl=7      <- stuck
     USB 5s: in ok=89 eagain=402 ctrl=8      <- healthy, pair command follows
 
-The console has done its control transfers and decided not to poll for input,
-so it never sees the PS press. The Bluetooth half is fine when you see this -
-don't go looking there.
+The console did its control transfers and decided not to poll for input, so it
+never sees the PS press. The Bluetooth half is fine - don't look there.
 
-**What was causing it, and why unplugging the dongle fixed it.** The relay
-talks to both radios over an HCI user channel, and on a user channel the kernel
-skips its own initialisation - reset included. The relay did not reset them
-either, so a controller kept whatever the last run left in its firmware. The one
-that mattered was a live Bluetooth link to the console: the relay exits, the
-console-facing controller keeps the link up, and the console carries on sending
-effects to what it still believes is its controller. When the next run brings
-the gadget up, the console already has the controller over Bluetooth and has no
-reason to poll it over USB.
-
-The log said so, if you knew where to look - near the top of every run that
-hung:
-
-    hci1 traffic on handle 13, which this run never opened - a link left behind by a previous one
-
-Across fourteen runs in one evening, five of the six that printed that line hung
-at "registering on the PS5", and none of the eight that did not. Unplugging the
-dongle worked because unplugging is a reset. The relay now resets both
-controllers before sending them anything else, and waits for the controller to
-confirm it, so that line should not appear and the unplugging should not be
-needed.
-
-An earlier version of this section blamed a leftover USB gadget, on two runs out
-of two. It did not hold up: later runs removed a leftover gadget and registered
-fine.
-
-If it happens anyway, a full power-down of the console clears it; rest mode
-doesn't.
+The cause was a controller holding a live Bluetooth link to the console across
+runs: an HCI user channel skips the kernel's reset, the relay did not reset
+either, so the console still had its controller and no reason to poll USB. The
+relay now resets both controllers at startup and waits for confirmation, so it
+should not recur. If it does, power the console down fully - rest mode won't
+clear it.
 
 **The pad keeps connecting and dropping.** The disconnects say
 `Remote User Terminated Connection`, the links get shorter each time, and then
@@ -352,18 +335,12 @@ three hosts, and every bond to the spoofed address takes a new slot, so after
 enough runs the console falls out of it. Pair the pad with the console directly
 again.
 
-**Don't charge the pad from the Pi's USB-A ports.** The kernel's `playstation`
-driver grabs it, and then two drivers are holding the same controller. A wall
-charger is fine. The console is not, because then there's a second controller on
-the port the Pi is pretending to be.
-
-**Input stutters while playing - the camera stops, snaps back, then jumps.**
-Not the relay, and not a dropped link: a 2.4 hour session has zero reconnections
-in it. The console stops taking input for about 135 ms at a time, in runs of
-three or so, and it does this sixty times more often while it is streaming
-haptic audio to the controller. Turning the controller's haptics and speaker
-down on the console is the one lever that is not on the Pi. `PERFORMANCE.md` has
-the measurements and `tools/analyse_stalls.py` reproduces them from a capture.
+**Input used to stutter while playing - the camera stopped, snapped back, then
+jumped.** Fixed. The console stopped taking input for ~135 ms at a time because
+the pad, having called the relay, stayed central of its Bluetooth link; a real
+console takes that role itself. The relay now does the same right after
+encryption, and the holes are gone (0 in 481 s, against 0.2-0.8/s before). The
+earlier suspect, haptic audio, was wrong. `PERFORMANCE.md` has the story.
 
 **`run.sh` says an adapter "is not present" although it is listed.** The
 console-side adapter keeps the address the relay wrote into it. That write is a
@@ -372,11 +349,11 @@ exiting, `hciconfig down`, and an HCI reset - only a power cycle clears it. An
 adapter pinned in `/etc/dualsense_mitm.adapters` by its factory address is then
 unfindable, because it now answers to the pad's. Put it back by hand:
 
-    sudo hciconfig hci3 up
-    sudo hcitool -i hci3 cmd 0x3f 0x01 0xF9 0x8B 0x9E 0xDD 0x3A 0xD8   # bytes reversed
-    sudo hciconfig hci3 reset
-    sudo hcitool -i hci3 cmd 0x04 0x09                                 # read it back
-    sudo hciconfig hci3 down
+    sudo hciconfig hci1 up                                            # the console-side adapter
+    sudo hcitool -i hci1 cmd 0x3f 0x01 0x3F 0x61 0xAA 0x70 0xF3 0x5C   # its factory address, bytes reversed
+    sudo hciconfig hci1 reset
+    sudo hcitool -i hci1 cmd 0x04 0x09                                 # read it back
+    sudo hciconfig hci1 down
 
 **The relay says the gadget function is missing.** `run.sh` stops if `usb_f_fs`
 or `usb_f_uac1` can't be loaded, which means the running kernel was built
@@ -417,13 +394,22 @@ a whole capture through the same parsing code.
 | `tools/analyse_stalls.py`, `tools/analyse_input_path.py` | the measurements behind it, run against a capture |
 | `tools/bench_radio_delivery.py` | drives one adapter from another to time how it hands over what it receives |
 
-## Prior work
+## Credits
 
 fraca7's notes in `l2cap_proxy` issue #6 (2021) first described the console's
 second radio and its call-back, and why one proxy per PSM can't work. dsremap's
 DualShock 4 notes map onto several of the DualSense feature reports. The kernel's
 `drivers/hid/hid-playstation.c` is the most reliable description of the report
-layouts. `nondebug/dualsense` is where the 273-byte descriptor comes from.
+layouts, and `nondebug/dualsense` is where the USB report descriptor comes from.
+
+The DualSense authentication was reverse-engineered by the community in
+[GIMX issue #672](https://github.com/matlo/GIMX/issues/672) - dogtopus, fraca7,
+smartcharge and others working out that input reports carry an AES-CMAC tag,
+decoding the `0xf0`/`0xf1`/`0xf2` handshake, and cross-referencing its status
+bytes against Sony's own PSVR2 kernel sources. psdevwiki documents the
+[DualSense HID commands](https://www.psdevwiki.com/ps5/DualSense_HID_Commands).
+`PROTOCOL.md` reaches the same conclusions from this project's own captures, and
+cites these where they go further.
 
 ## License
 

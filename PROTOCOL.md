@@ -189,8 +189,11 @@ looks exactly like a controller that has stopped working. It has not.
 `53 80 <cmd> ...` to ask and `a3 81 <cmd> <status> ...` to answer, command echoed
 back. Two commands appear: `01 13` reads the serial number in one answer, and
 `70 11` starts something that takes nine seconds, polled once a second with
-status `03` (more to come) until `02` ends it. What the multi-part payload means
-is unknown; the point for a relay is that every part has to be forwarded or the
+status `03` (more to come) until `02` ends it. These are the pad's firmware and
+manufacturing commands; psdevwiki documents the set - Get Firmware Info, Get/Set
+BT Address, NVS lock/unlock, Set DFU Mode and dozens more - at
+[DualSense HID Commands](https://www.psdevwiki.com/ps5/DualSense_HID_Commands).
+For a relay the point is only that every part has to be forwarded or the
 console is left polling a sequence that never finishes — which is why the control
 channel is never flushed and only input reports are marked flushable.
 
@@ -211,6 +214,15 @@ pad -> console : GET 0xf1 pages 0..3         certificate + signature over the no
 console -> pad : SET 0xf0 op=02              finalize, 16 fresh bytes
    status       : 0xf2 state 0x40            authenticated
 ```
+
+The status bytes have names. The community mapped them against Sony's own PSVR2
+kernel sources, which run the same handshake: `0x01` initial, `0x11` executing,
+`0x12` response ready, `0x20` waiting on the host's response, `0x40`
+authenticated, `0x51`/`0x52` for the periodic re-auth, `0x80` error. And the
+check is **bidirectional** - the pad also challenges the console, which is why
+the handshake can only be relayed, never faked (GIMX #672; see the README's
+Credits). Reports `0xf4`/`0xf5`, which share the `0xf` prefix, are not part of
+this - they are the firmware-update (DFU) channel.
 
 The `0xf1` response is dominated by a 128-byte block that is byte-identical in
 every one of 48 handshakes — a per-device certificate, with a constant key id
@@ -237,7 +249,11 @@ Bluetooth path does not trip it.
 
 Every input report is signed with an AES-CMAC tag keyed by a session key that is
 established through the handshake above and never appears on the wire, in the
-kernel driver, or in any console key dump. That is why the relay passes
+kernel driver, or in any console key dump. (That the tag is AES-CMAC is
+corroborated by a leaked Sony tool, `Dualsense_checker`, reported in GIMX #672;
+over USB the same tag covers only the report's first 16 bytes, and blocking the
+`0xf0` challenge makes the console accept tampered reports for about two minutes -
+direct evidence the tag is tied to the session key the handshake sets up.) That is why the relay passes
 everything through untouched: editing a report breaks the tag, replaying an old
 one fails the console's freshness check, and the legacy unsigned `0x01` format is
 refused mid-game. The relay reaches everything short of that key — the report
