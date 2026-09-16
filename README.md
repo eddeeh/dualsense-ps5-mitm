@@ -1,5 +1,7 @@
 # ps5padlog
 
+![](image.jpeg)
+
 A Raspberry Pi 5 that sits between a DualSense and a PS5, relays everything in
 both directions - input, rumble, lightbar, trigger effects - and shows every
 button, stick and touch as it goes past, with each press written to a log.
